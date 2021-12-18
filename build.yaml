@@ -1,11 +1,6 @@
 steps:
 - name: "gcr.io/unwrapped-spotify/unwrapper:latest"
-  dir: /src
-  volumes:
-  - name: output
-    path: /src/output
-- name: gcr.io/cloud-builders/gsutil
-  args: ["cp", "/output/output.html", "gs://unwrapped-spotify-reports/output.html"]
-  volumes:
-  - name: output
-    path: /output
+artifacts:
+  objects:
+    location: "gs://unwrapped-spotify-reports"
+    paths: ["output.html"]
