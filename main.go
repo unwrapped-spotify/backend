@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"io/ioutil"
+	// "encoding/json"
+
+	"cloud.google.com/go/storage"
 
 	cloudbuild "cloud.google.com/go/cloudbuild/apiv1"
 	"github.com/gorilla/mux"
@@ -16,12 +20,43 @@ func healthcheckCall(writer http.ResponseWriter, request *http.Request) {
 	fmt.Println("Endpoint Hit: healthcheck")
 }
 
+func streamingHistoryCall(w http.ResponseWriter, request *http.Request){
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	
+	body, _ := ioutil.ReadAll(request.Body)
+	bodyString := string(body)
+
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		// handle error.
+	}
+	wc := client.Bucket("unwrapped-spotify-reports").Object("data.json").NewWriter(ctx)
+	wc.ContentType = "text/plain"
+
+	if _, err := wc.Write([]byte(bodyString)); err != nil {
+        fmt.Println("Unable to write data to bucket %v", err)
+        return
+	}
+
+	wc.Close()
+
+	build() // :)
+
+	//Return something here
+}
+
 func handleRequests() {
 	// Create a router using the mux library
-	myRouter := mux.NewRouter().StrictSlash(true)
-	myRouter.HandleFunc("/", healthcheckCall)
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/", healthcheckCall)
+	router.HandleFunc("/streaming-history", streamingHistoryCall).Methods("POST", "OPTIONS")
+	
 
 	http.HandleFunc("/healthcheck", healthcheckCall)
+	http.HandleFunc("/streaming-history", streamingHistoryCall)
 	log.Fatal(http.ListenAndServe(":500", nil))
 }
 
@@ -43,7 +78,7 @@ func build() {
 				Source: &cloudbuildpb.Source_StorageSource{
 					StorageSource: &cloudbuildpb.StorageSource{
 						Bucket: "unwrapped-spotify-reports",
-						Object: "data.zip",
+						Object: "data.json",
 					},
 				},
 			},
@@ -73,6 +108,6 @@ func build() {
 
 func main() {
 	fmt.Println("RESTful Go API starting on ")
-	//handleRequests()
-	build()
+	handleRequests()
+	// build()
 }
