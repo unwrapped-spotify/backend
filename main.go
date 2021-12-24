@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"io/ioutil"
+
 	// "encoding/json"
 
 	"cloud.google.com/go/storage"
@@ -20,11 +21,11 @@ func healthcheckCall(writer http.ResponseWriter, request *http.Request) {
 	fmt.Println("Endpoint Hit: healthcheck")
 }
 
-func streamingHistoryCall(w http.ResponseWriter, request *http.Request){
-    w.Header().Set("Access-Control-Allow-Origin", "*")
+func streamingHistoryCall(w http.ResponseWriter, request *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	
+
 	body, _ := ioutil.ReadAll(request.Body)
 	bodyString := string(body)
 
@@ -37,8 +38,8 @@ func streamingHistoryCall(w http.ResponseWriter, request *http.Request){
 	wc.ContentType = "text/plain"
 
 	if _, err := wc.Write([]byte(bodyString)); err != nil {
-        fmt.Println("Unable to write data to bucket %v", err)
-        return
+		fmt.Println("Unable to write data to bucket %v", err)
+		return
 	}
 
 	wc.Close()
@@ -53,7 +54,6 @@ func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", healthcheckCall)
 	router.HandleFunc("/streaming-history", streamingHistoryCall).Methods("POST", "OPTIONS")
-	
 
 	http.HandleFunc("/healthcheck", healthcheckCall)
 	http.HandleFunc("/streaming-history", streamingHistoryCall)
@@ -74,15 +74,19 @@ func build() {
 		Parent:    "projects/unwrapped-spotify/locations/global",
 		ProjectId: "unwrapped-spotify",
 		Build: &cloudbuildpb.Build{
-			Source: &cloudbuildpb.Source{
-				Source: &cloudbuildpb.Source_StorageSource{
-					StorageSource: &cloudbuildpb.StorageSource{
-						Bucket: "unwrapped-spotify-reports",
-						Object: "data.json",
-					},
-				},
-			},
+			//Source: &cloudbuildpb.Source{
+			//	Source: &cloudbuildpb.Source_StorageSource{
+			//		StorageSource: &cloudbuildpb.StorageSource{
+			//			Bucket: "unwrapped-spotify-reports",
+			//			Object: "data.json",
+			//		},
+			//	},
+			//},
 			Steps: []*cloudbuildpb.BuildStep{
+				{
+					Name: "gcr.io/cloud-builders/gsutil",
+					Args: []string{"cp", "gs://unwrapped-spotify-reports/data.json", "data.json"},
+				},
 				{
 					Name: "gcr.io/unwrapped-spotify/unwrapper",
 				},
@@ -108,6 +112,6 @@ func build() {
 
 func main() {
 	fmt.Println("RESTful Go API starting on ")
-	handleRequests()
-	// build()
+	//handleRequests()
+	build()
 }
