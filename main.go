@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -12,9 +13,16 @@ import (
 	"cloud.google.com/go/storage"
 
 	cloudbuild "cloud.google.com/go/cloudbuild/apiv1"
+	firestore "cloud.google.com/go/firestore"
 	"github.com/gorilla/mux"
 	cloudbuildpb "google.golang.org/genproto/googleapis/devtools/cloudbuild/v1"
 )
+
+func hash(s string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return h.Sum32()
+}
 
 func healthcheckCall(writer http.ResponseWriter, request *http.Request) {
 	fmt.Fprintf(writer, "{alive: true}")
@@ -58,6 +66,23 @@ func handleRequests() {
 	http.HandleFunc("/healthcheck", healthcheckCall)
 	http.HandleFunc("/streaming-history", streamingHistoryCall)
 	log.Fatal(http.ListenAndServe(":500", nil))
+}
+
+func createUser(email string) {
+	projectID := "unwrapped-spotify"
+
+	ctx := context.Background()
+
+	client, err := firestore.NewClient(ctx, projectID)
+
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
+
+	client.Collection("users").Doc(email).Set(ctx, map[string]interface{}{
+		"email":     email,
+		"storageID": hash(email),
+	})
 }
 
 func build() {
@@ -112,6 +137,5 @@ func build() {
 
 func main() {
 	fmt.Println("RESTful Go API starting on ")
-	//handleRequests()
-	build()
+	handleRequests()
 }
