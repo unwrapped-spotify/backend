@@ -1,33 +1,43 @@
 package main
 
+// Import packages
 import (
-	"context"
-	"fmt"
-	"hash/fnv"
+	// System packages
+	"context"  // ICL no clue what this is
+	"fmt"      // IO pipes
+	"hash/fnv" // Used to hash the email
 	"io/ioutil"
-	"log"
-	"net/http"
-	"os"
+	"log"      // Logging
+	"net/http" // Working with HTTP requests
+	"os"       // Environment variables
 
-	// "encoding/json"
+	// Github packages
+	"github.com/gorilla/mux"   // Mux provides URL routing
+	"github.com/joho/godotenv" // Used to load environment variables
 
-	"cloud.google.com/go/storage"
+	// Gcloud packages
+	"cloud.google.com/go/storage" // Cloud Storage (buckets)
 
-	cloudbuild "cloud.google.com/go/cloudbuild/apiv1"
-	firestore "cloud.google.com/go/firestore"
-	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
-	cloudbuildpb "google.golang.org/genproto/googleapis/devtools/cloudbuild/v1"
+	cloudbuild "cloud.google.com/go/cloudbuild/apiv1"                           // Cloud Build
+	firestore "cloud.google.com/go/firestore"                                   // Cloud Firestore
+	cloudbuildpb "google.golang.org/genproto/googleapis/devtools/cloudbuild/v1" // Extra bits for cloudbuild
 )
 
+// This hashes a string into a number
 func hash(s string) uint32 {
+	// Create a new hash
 	h := fnv.New32a()
+	// Write the string to the hash
 	h.Write([]byte(s))
+	// Return the hash
 	return h.Sum32()
 }
 
+// Provides a healthcheck endpoint to see if API is running
 func healthcheckCall(writer http.ResponseWriter, request *http.Request) {
+	// print {alive: true} to the http writer - this will be returned to the client
 	fmt.Fprintf(writer, "{alive: true}")
+	// Log that we have received a request
 	fmt.Println("Endpoint Hit: healthcheck")
 }
 
@@ -70,54 +80,65 @@ func handleRequests() {
 	log.Fatal(http.ListenAndServe(":500", nil))
 }
 
+// Create a user in the firestore database
 func createUser(email string) {
-	projectID := "unwrapped-spotify"
-
+	// Create a new context - should be done in the function definition
 	ctx := context.Background()
+	// Create a new client
+	client, err := firestore.NewClient(ctx, os.Getenv("GCP_PROJECT_ID"))
 
-	client, err := firestore.NewClient(ctx, projectID)
-
+	// Check for errors
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 
+	// Create a new document for the user. The path will be users/email
 	client.Collection("users").Doc(email).Set(ctx, map[string]interface{}{
-		"email":     email,
+		// Save the email
+		"email": email,
+		// Create a storage ID, this is a hash of the email string so is unique for each document/user
 		"storageID": hash(email),
 	})
 }
 
+// Build the report
 func build() {
+	// Create a new context - should be done in the function definition
 	ctx := context.Background()
 
+	// Create a new client
 	client, err := cloudbuild.NewClient(ctx)
+	// Close when done
+	defer client.Close()
 
+	// Check for errors
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer client.Close()
 
+	// Create a new build request - this will build the report by running the R container
 	req := &cloudbuildpb.CreateBuildRequest{
-		Parent:    "projects/unwrapped-spotify/locations/global",
+		// Where to create the resource
+		Parent: "projects/" + os.Getenv("GCP_PROJECT_ID") + "/locations/global",
+		// Porject ID - this is the project that the container will be run in
 		ProjectId: os.Getenv("GCP_PROJECT_ID"),
+		// The build to run
 		Build: &cloudbuildpb.Build{
-			//Source: &cloudbuildpb.Source{
-			//	Source: &cloudbuildpb.Source_StorageSource{
-			//		StorageSource: &cloudbuildpb.StorageSource{
-			//			Bucket: "unwrapped-spotify-reports",
-			//			Object: "data.json",
-			//		},
-			//	},
-			//},
+			// Build constists of 2 steps.
+			// 1. Copy the data.json from the bucket to the workspace
+			// 2. Run the R container/report builder
 			Steps: []*cloudbuildpb.BuildStep{
+				// Step 1
 				{
 					Name: "gcr.io/cloud-builders/gsutil",
 					Args: []string{"cp", "gs://unwrapped-spotify-reports/data.json", "data.json"},
 				},
+				// Step 2
 				{
 					Name: "gcr.io/unwrapped-spotify/unwrapper",
 				},
 			},
+			// The report is an artifact - copy this to the bucket
 			Artifacts: &cloudbuildpb.Artifacts{
 				Objects: &cloudbuildpb.Artifacts_ArtifactObjects{
 					Location: "gs://unwrapped-spotify-reports",
@@ -127,22 +148,29 @@ func build() {
 		},
 	}
 
+	// Start the build
 	response, err := client.CreateBuild(ctx, req)
 
+	// Check for errors
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Bin off response for now
 	_ = response
 
 }
 
 func main() {
+	// Load the environment variables
 	err := godotenv.Load()
+	// Check for errors
 	if err != nil {
 		log.Fatal("Error loading .env file")
 		log.Fatal(err)
 	}
+	// Print that we are running
 	fmt.Println("RESTful Go API starting on ")
+	// Now start running...
 	handleRequests()
 }
