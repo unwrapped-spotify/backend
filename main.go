@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	// "encoding/json"
 
@@ -15,6 +16,7 @@ import (
 	cloudbuild "cloud.google.com/go/cloudbuild/apiv1"
 	firestore "cloud.google.com/go/firestore"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	cloudbuildpb "google.golang.org/genproto/googleapis/devtools/cloudbuild/v1"
 )
 
@@ -40,13 +42,13 @@ func streamingHistoryCall(w http.ResponseWriter, request *http.Request) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		// handle error.
+		log.Fatal(err)
 	}
 	wc := client.Bucket("unwrapped-spotify-reports").Object("data.json").NewWriter(ctx)
 	wc.ContentType = "text/plain"
 
 	if _, err := wc.Write([]byte(bodyString)); err != nil {
-		fmt.Println("Unable to write data to bucket %v", err)
+		log.Fatal(err)
 		return
 	}
 
@@ -97,7 +99,7 @@ func build() {
 
 	req := &cloudbuildpb.CreateBuildRequest{
 		Parent:    "projects/unwrapped-spotify/locations/global",
-		ProjectId: "unwrapped-spotify",
+		ProjectId: os.Getenv("GCP_PROJECT_ID"),
 		Build: &cloudbuildpb.Build{
 			//Source: &cloudbuildpb.Source{
 			//	Source: &cloudbuildpb.Source_StorageSource{
@@ -136,6 +138,11 @@ func build() {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+		log.Fatal(err)
+	}
 	fmt.Println("RESTful Go API starting on ")
 	handleRequests()
 }
