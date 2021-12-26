@@ -42,10 +42,11 @@ func healthcheckCall(writer http.ResponseWriter, request *http.Request) {
 }
 
 func streamingHistoryCall(w http.ResponseWriter, request *http.Request) {
+	// Something something CORS
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
+	// Get the JSON from the body of the request
 	body, _ := ioutil.ReadAll(request.Body)
 	bodyString := string(body)
 
@@ -54,7 +55,7 @@ func streamingHistoryCall(w http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	wc := client.Bucket("unwrapped-spotify-reports").Object("data.json").NewWriter(ctx)
+	wc := client.Bucket("unwrapped-spotify-reports").Object("/" + mux.Vars(request)["storageID"] + "/data.json").NewWriter(ctx)
 	wc.ContentType = "text/plain"
 
 	if _, err := wc.Write([]byte(bodyString)); err != nil {
@@ -64,24 +65,19 @@ func streamingHistoryCall(w http.ResponseWriter, request *http.Request) {
 
 	wc.Close()
 
-	build() // :)
+	build(mux.Vars(request)["storageID"]) // :)
 
 	//Return something here
 }
 
-func handleRequests() {
-	// Create a router using the mux library
-	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/", healthcheckCall)
-	router.HandleFunc("/streaming-history", streamingHistoryCall).Methods("POST", "OPTIONS")
+func createUserCall(w http.ResponseWriter, request *http.Request) {
+	storageID := createUser(mux.Vars(request)["email"])
 
-	http.HandleFunc("/healthcheck", healthcheckCall)
-	http.HandleFunc("/streaming-history", streamingHistoryCall)
-	log.Fatal(http.ListenAndServe(":500", nil))
+	fmt.Fprintf(w, "{storageID: %d}", storageID)
 }
 
-// Create a user in the firestore database
-func createUser(email string) {
+// Create a user in the firestore database - returns the storage ID/hashed email
+func createUser(email string) uint32 {
 	// Create a new context - should be done in the function definition
 	ctx := context.Background()
 	// Create a new client
@@ -99,10 +95,27 @@ func createUser(email string) {
 		// Create a storage ID, this is a hash of the email string so is unique for each document/user
 		"storageID": hash(email),
 	})
+
+	return hash(email)
+}
+
+func handleRequests() {
+	// Create a router using the mux library
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/healthcheck", healthcheckCall)
+	router.HandleFunc("/streaming-history/{storageID}/build", streamingHistoryCall).Methods("POST", "OPTIONS")
+	router.HandleFunc("/users/{email}/create", createUserCall)
+
+	//http.HandleFunc("/healthcheck", healthcheckCall)
+	//http.HandleFunc("/streaming-history", streamingHistoryCall)
+	//http.HandleFunc("/users/{email}/create", createUserCall)
+	//log.Fatal(http.ListenAndServe(":500", nil))
+	http.Handle("/", router)
+	http.ListenAndServe(":500", nil)
 }
 
 // Build the report
-func build() {
+func build(storageID string) {
 	// Create a new context - should be done in the function definition
 	ctx := context.Background()
 
@@ -131,7 +144,7 @@ func build() {
 				// Step 1
 				{
 					Name: "gcr.io/cloud-builders/gsutil",
-					Args: []string{"cp", "gs://unwrapped-spotify-reports/data.json", "data.json"},
+					Args: []string{"cp", "gs://unwrapped-spotify-reports/" + storageID + "/data.json", "data.json"},
 				},
 				// Step 2
 				{
@@ -141,7 +154,7 @@ func build() {
 			// The report is an artifact - copy this to the bucket
 			Artifacts: &cloudbuildpb.Artifacts{
 				Objects: &cloudbuildpb.Artifacts_ArtifactObjects{
-					Location: "gs://unwrapped-spotify-reports",
+					Location: "gs://unwrapped-spotify-reports/" + storageID,
 					Paths:    []string{"output.html"},
 				},
 			},
