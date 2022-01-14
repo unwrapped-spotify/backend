@@ -3,7 +3,8 @@ package main
 // Import packages
 import (
 	// System packages
-	"context"  // ICL no clue what this is
+	"context" // ICL no clue what this is
+	"errors"
 	"fmt"      // IO pipes
 	"hash/fnv" // Used to hash the email
 	"io/ioutil"
@@ -176,11 +177,15 @@ func build(storageID string) {
 
 func main() {
 	// Load the environment variables
-	err := godotenv.Load()
-	// Check for errors
-	if err != nil {
-		log.Fatal("Error loading .env file")
-		log.Fatal(err)
+	if _, err := os.Stat(".env"); errors.Is(err, os.ErrNotExist) {
+		log.Print("No .env file found, skipping")
+	} else {
+		err := godotenv.Load()
+		// Check for errors
+		if err != nil {
+			log.Fatal("Error loading .env file")
+			log.Fatal(err)
+		}
 	}
 	// Print that we are running
 	fmt.Println("RESTful Go API starting on ")
