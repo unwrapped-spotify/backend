@@ -113,9 +113,9 @@ func createUser(email string) uint32 {
 func handleRequests() {
 	// Create a router using the mux library
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/healthcheck", healthcheckCall)
-	router.HandleFunc("/streaming-history/{storageID}/build", streamingHistoryCall).Methods("POST", "OPTIONS")
-	router.HandleFunc("/users/{email}/create", createUserCall)
+	router.HandleFunc("/api/v1/healthcheck", healthcheckCall)
+	router.HandleFunc("/api/v1/streaming-history/{storageID}/build", streamingHistoryCall).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/v1/users/{email}/create", createUserCall)
 	//http.HandleFunc("/healthcheck", healthcheckCall)
 	//http.HandleFunc("/streaming-history", streamingHistoryCall)
 	//http.HandleFunc("/users/{email}/create", createUserCall)
