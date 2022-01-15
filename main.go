@@ -72,6 +72,10 @@ func streamingHistoryCall(w http.ResponseWriter, request *http.Request) {
 }
 
 func createUserCall(w http.ResponseWriter, request *http.Request) {
+	// Something something CORS
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 	storageID := createUser(mux.Vars(request)["email"])
 
 	fmt.Fprintf(w, "{storageID: %d}", storageID)
