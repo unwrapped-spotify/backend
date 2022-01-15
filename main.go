@@ -4,6 +4,7 @@ package main
 import (
 	// System packages
 	"context" // ICL no clue what this is
+	"encoding/json"
 	"errors"
 	"fmt"      // IO pipes
 	"hash/fnv" // Used to hash the email
@@ -35,9 +36,13 @@ func hash(s string) uint32 {
 }
 
 // Provides a healthcheck endpoint to see if API is running
-func healthcheckCall(writer http.ResponseWriter, request *http.Request) {
-	// print {alive: true} to the http writer - this will be returned to the client
-	fmt.Fprintf(writer, "{alive: true}")
+func healthcheckCall(w http.ResponseWriter, request *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
+
+	// Create a JSON to return to client to signal we are alive
+	json.NewEncoder(w).Encode(map[string]bool{"alive": true})
 	// Log that we have received a request
 	fmt.Println("Endpoint Hit: healthcheck")
 }
@@ -75,10 +80,11 @@ func createUserCall(w http.ResponseWriter, request *http.Request) {
 	// Something something CORS
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
 
 	storageID := createUser(mux.Vars(request)["email"])
-
-	fmt.Fprintf(w, "{storageID: %d}", storageID)
+	// Respond with the storage ID - encode it as JSON
+	json.NewEncoder(w).Encode(map[string]uint32{"storageID": storageID})
 }
 
 // Create a user in the firestore database - returns the storage ID/hashed email
@@ -110,7 +116,6 @@ func handleRequests() {
 	router.HandleFunc("/healthcheck", healthcheckCall)
 	router.HandleFunc("/streaming-history/{storageID}/build", streamingHistoryCall).Methods("POST", "OPTIONS")
 	router.HandleFunc("/users/{email}/create", createUserCall)
-
 	//http.HandleFunc("/healthcheck", healthcheckCall)
 	//http.HandleFunc("/streaming-history", streamingHistoryCall)
 	//http.HandleFunc("/users/{email}/create", createUserCall)
