@@ -23,6 +23,8 @@ import (
 	cloudbuild "cloud.google.com/go/cloudbuild/apiv1"                           // Cloud Build
 	firestore "cloud.google.com/go/firestore"                                   // Cloud Firestore
 	cloudbuildpb "google.golang.org/genproto/googleapis/devtools/cloudbuild/v1" // Extra bits for cloudbuild
+	"google.golang.org/protobuf/encoding/protojson"
+	// Long running operations
 )
 
 // This hashes a string into a number
@@ -105,6 +107,9 @@ func createReportCall(w http.ResponseWriter, request *http.Request) {
 	// Build the report
 	build(mux.Vars(request)["storageID"])
 
+	// Respond with the build info - encode it as JSON
+	//json.NewEncoder(w).Encode(map[string]string{"buildID": buildInfo})
+
 	//Return something here
 }
 
@@ -157,7 +162,7 @@ func handleRequests() {
 }
 
 // Build the report
-func build(storageID string) {
+func build(storageID string) string {
 	// Create a new context - should be done in the function definition
 	ctx := context.Background()
 
@@ -211,8 +216,16 @@ func build(storageID string) {
 		log.Fatal(err)
 	}
 
-	// Bin off response for now
-	_ = response
+	responseProto, _ := response.GetMetadata().UnmarshalNew()
+
+	responseJson := protojson.Format(responseProto)
+	var responseData map[string]interface{}
+
+	json.Unmarshal([]byte(responseJson), &responseData)
+
+	id := responseData["build"].(map[string]interface{})["id"]
+
+	return (fmt.Sprintf("%v", id))
 
 }
 
