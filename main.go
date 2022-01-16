@@ -186,7 +186,7 @@ func build(storageID string) {
 				// Step 1
 				{
 					Name: "gcr.io/cloud-builders/gsutil",
-					Args: []string{"cp", "gs://unwrapped-spotify-reports/" + storageID + "/data.json", "data.json"},
+					Args: []string{"cp", "-r", "gs://unwrapped-spotify-reports/" + storageID + "/data", "."},
 				},
 				// Step 2
 				{
