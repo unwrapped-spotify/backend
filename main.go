@@ -105,10 +105,10 @@ func createReportCall(w http.ResponseWriter, request *http.Request) {
 	}
 
 	// Build the report
-	build(mux.Vars(request)["storageID"])
+	buildID := build(mux.Vars(request)["storageID"])
 
 	// Respond with the build info - encode it as JSON
-	//json.NewEncoder(w).Encode(map[string]string{"buildID": buildInfo})
+	json.NewEncoder(w).Encode(map[string]string{"buildID": buildID})
 
 	//Return something here
 }
