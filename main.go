@@ -113,6 +113,19 @@ func createReportCall(w http.ResponseWriter, request *http.Request) {
 	//Return something here
 }
 
+func reportStatusCall(w http.ResponseWriter, request *http.Request) {
+	// Something something CORS
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
+
+	buildID := request.FormValue("buildID")
+
+	status := buildStatus(buildID)
+
+	json.NewEncoder(w).Encode(map[string]string{"status": status})
+}
+
 func createUserCall(w http.ResponseWriter, request *http.Request) {
 	// Something something CORS
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -152,6 +165,7 @@ func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/api/v1/healthcheck", healthcheckCall)
 	router.HandleFunc("/api/v1/report/{storageID}/create", createReportCall).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/v1/report/{storageID}/status", reportStatusCall).Queries("buildID", "{buildID}")
 	router.HandleFunc("/api/v1/users/{email}/create", createUserCall)
 	//http.HandleFunc("/healthcheck", healthcheckCall)
 	//http.HandleFunc("/streaming-history", streamingHistoryCall)
@@ -226,6 +240,33 @@ func build(storageID string) string {
 	id := responseData["build"].(map[string]interface{})["id"]
 
 	return (fmt.Sprintf("%v", id))
+
+}
+
+func buildStatus(buildID string) string {
+
+	// Create a new context - should be done in the function definition
+	ctx := context.Background()
+	// Create a new client
+	client, err := cloudbuild.NewClient(ctx)
+	// Close when done
+	defer client.Close()
+
+	// Check for errors
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	req := &cloudbuildpb.GetBuildRequest{
+		ProjectId: os.Getenv("GCP_PROJECT_ID"),
+		Id:        buildID,
+	}
+
+	build, _ := client.GetBuild(ctx, req)
+
+	buildStatus := build.GetStatus().String()
+
+	return (buildStatus)
 
 }
 
