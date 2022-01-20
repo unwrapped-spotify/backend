@@ -13,6 +13,7 @@ import (
 	"net/http" // Working with HTTP requests
 	"os"       // Environment variables
 
+	// Time
 	// Github packages
 	"github.com/gorilla/mux"   // Mux provides URL routing
 	"github.com/joho/godotenv" // Used to load environment variables
@@ -119,11 +120,35 @@ func reportStatusCall(w http.ResponseWriter, request *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Content-Type", "application/json")
 
+	log.Println("Endpoint hit: Report status")
 	buildID := request.FormValue("buildID")
 
 	status := buildStatus(buildID)
 
 	json.NewEncoder(w).Encode(map[string]string{"status": status})
+}
+
+func downloadReportCall(w http.ResponseWriter, request *http.Request) {
+	// Something something CORS
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/octet-stream")
+
+	storageID := mux.Vars(request)["storageID"]
+
+	ctx := context.Background()
+
+	client, _ := storage.NewClient(ctx)
+
+	file, _ := client.Bucket(
+		"unwrapped-spotify-reports",
+	).Object(
+		storageID + "/output.html",
+	).NewReader(ctx)
+
+	fileBytes, _ := ioutil.ReadAll(file)
+
+	w.Write(fileBytes)
 }
 
 func createUserCall(w http.ResponseWriter, request *http.Request) {
@@ -166,6 +191,7 @@ func handleRequests() {
 	router.HandleFunc("/api/v1/healthcheck", healthcheckCall)
 	router.HandleFunc("/api/v1/report/{storageID}/create", createReportCall).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/v1/report/{storageID}/status", reportStatusCall).Queries("buildID", "{buildID}")
+	router.HandleFunc("/api/v1/report/{storageID}/download.html", downloadReportCall)
 	router.HandleFunc("/api/v1/users/{email}/create", createUserCall)
 	//http.HandleFunc("/healthcheck", healthcheckCall)
 	//http.HandleFunc("/streaming-history", streamingHistoryCall)
