@@ -242,7 +242,7 @@ func build(storageID string) string {
 			Artifacts: &cloudbuildpb.Artifacts{
 				Objects: &cloudbuildpb.Artifacts_ArtifactObjects{
 					Location: "gs://unwrapped-spotify-reports/" + storageID,
-					Paths:    []string{"output.html"},
+					Paths:    []string{"output.pdf"},
 				},
 			},
 		},
