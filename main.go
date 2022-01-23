@@ -132,7 +132,7 @@ func downloadReportCall(w http.ResponseWriter, request *http.Request) {
 	// Something something CORS
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Type", "application/pdf")
 
 	storageID := mux.Vars(request)["storageID"]
 
