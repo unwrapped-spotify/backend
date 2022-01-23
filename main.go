@@ -191,7 +191,7 @@ func handleRequests() {
 	router.HandleFunc("/api/v1/healthcheck", healthcheckCall)
 	router.HandleFunc("/api/v1/report/{storageID}/create", createReportCall).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/v1/report/{storageID}/status", reportStatusCall).Queries("buildID", "{buildID}")
-	router.HandleFunc("/api/v1/report/{storageID}/download.html", downloadReportCall)
+	router.HandleFunc("/api/v1/report/{storageID}/download.pdf", downloadReportCall)
 	router.HandleFunc("/api/v1/users/{email}/create", createUserCall)
 	//http.HandleFunc("/healthcheck", healthcheckCall)
 	//http.HandleFunc("/streaming-history", streamingHistoryCall)
