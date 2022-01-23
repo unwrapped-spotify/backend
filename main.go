@@ -143,7 +143,7 @@ func downloadReportCall(w http.ResponseWriter, request *http.Request) {
 	file, _ := client.Bucket(
 		"unwrapped-spotify-reports",
 	).Object(
-		storageID + "/output.html",
+		storageID + "/output.pdf",
 	).NewReader(ctx)
 
 	fileBytes, _ := ioutil.ReadAll(file)
