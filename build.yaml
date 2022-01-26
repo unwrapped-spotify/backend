@@ -1,6 +1,0 @@
-steps:
-- name: "gcr.io/unwrapped-spotify/unwrapper:latest"
-artifacts:
-  objects:
-    location: "gs://unwrapped-spotify-reports"
-    paths: ["output.html"]
